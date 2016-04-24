@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+version="0.9.0"
+
+IGNORE=""
+DIR="."
+FILE="*"
+PL_CODE=""
+BACKUP=""
+DRY_RUN=""
+
+# ============================================================
+# Functions
+help() {
+  pod2text $0
+  exit 1
+}
+
+# ============================================================
+# Parse Arguments
+
+for opt in "$@"; do
+  case "${1:-}" in
+    "-b" | "--backup" )
+      if [[ -z $2 || "$2" =~ ^-+ ]]; then
+        help
+      else
+        BACKUP=$2
+        shift 2
+      fi
+      ;;
+    "-i" | "--ignore" )
+      if [[ -z $2 || "$2" =~ ^-+ ]]; then
+        help
+      else
+        IGNORE="$2"
+        shift 2
+      fi
+      ;;
+    "-f" | "--file" )
+      if [[ -z $2 || "$2" =~ ^-+ ]]; then
+        help
+      else
+        FILE="$2"
+        shift 2
+      fi
+      ;;
+    "-d" | "--dir" )
+      if [[ -z $2 || "$2" =~ ^-+ ]]; then
+        help
+      else
+        DIR="$2"
+        shift 2
+      fi
+      ;;
+    "-n" | "--dry-run" )
+      DRY_RUN="true"
+      shift
+      ;;
+    "-h" | "--help" ) help ;;
+    "-v" | "--version" )
+      echo $version
+      exit 0
+      ;;
+    * )
+      if [[ ${1:-} && -z "$PL_CODE" ]]; then
+        PL_CODE="$1"
+        shift
+      fi
+      ;;
+  esac
+done
+
+if [[ -z $PL_CODE ]]; then
+  help
+fi
+
+PLOPT="-pi -e"
+if [[ "$BACKUP" ]]; then
+  PLOPT="-pi'$BACKUP' -e"
+fi
+
+if [[ $IGNORE ]]; then
+  command="find $DIR -type f -name '$FILE' | egrep -v '$IGNORE' | xargs perl $PLOPT '$PL_CODE'"
+else
+  command="find $DIR -type f -name '$FILE' | xargs perl $PLOPT '$PL_CODE'"
+fi
+
+echo $command
+if [[ -z $DRY_RUN ]]; then
+  /usr/bin/env bash -c "$command"
+fi
+
+exit 0
+
+: <<'__EOF__'
+
+=encoding utf8
+
+=head1 NAME
+
+B<xfperl-pie> - Wrapper command of C<find ... | xargs perl -pi -e ...>
+
+=head1 SYNOPSYS
+
+    xfperl-pie PL_CODE [-f|--file FILE] [-i|--ignore IGNORE_FILE_PATTERN] \
+      [-d|--dir DIR] [-b|--backup BACKUP] [-n|--dry-run]
+
+    # version
+    xfperl-pie -v|--version
+    # help
+    xfperl-pie -h|--help
+
+=head1 DESCRIPTION
+
+This wrapper executes following commands:
+
+    find $DIR -type f -name '$FILE' [ | egrep -v '$IGNORE' ] | \
+      xargs perl -pi'$BACKUP' -e '$PL_CODE'
+
+=head1 SEE ALSO
+
+L<https://github.com/key-amb/bash-xfgrep>
+
+=head1 AUTHORS
+
+YASUTAKE Kiyoshi E<lt>yasutake.kiyoshi@gmail.comE<gt>
+
+=head1 LICENSE
+
+The MIT License (MIT)
+
+Copyright (c) 2016 YASUTAKE Kiyoshi
+
+=cut
+
+__EOF__
+
